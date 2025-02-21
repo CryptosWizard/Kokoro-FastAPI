@@ -28,17 +28,23 @@ USER appuser
 WORKDIR /app
 
 # Copy dependency files
-COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
-
+# COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
+COPY pyproject.toml ./pyproject.toml
+RUN chown appuser:appuser ./pyproject.toml
 # Install dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.10 && \
     uv sync --extra cpu
 
 # Copy project files including models
-COPY --chown=appuser:appuser api ./api
-COPY --chown=appuser:appuser web ./web
-COPY --chown=appuser:appuser docker/scripts/ ./
+# COPY --chown=appuser:appuser api ./api
+# COPY --chown=appuser:appuser web ./web
+# COPY --chown=appuser:appuser docker/scripts/ ./
+COPY api ./api
+COPY web ./web
+COPY docker/scripts/ ./
+RUN chown -R appuser:appuser ./api ./web ./entrypoint.sh
+
 RUN chmod +x ./entrypoint.sh
 
 # Set environment variables
