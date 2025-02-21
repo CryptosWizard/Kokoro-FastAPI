@@ -1,6 +1,8 @@
-FROM python:3.10-slim 
+FROM python:3.10-slim
 
-# Install dependencies and check espeak location
+# --------------------------------------------------------------------------------
+# Install system-level dependencies
+# --------------------------------------------------------------------------------
 RUN apt-get update && apt-get install -y \
     espeak-ng \
     espeak-ng-data \
@@ -9,39 +11,47 @@ RUN apt-get update && apt-get install -y \
     curl \
     ffmpeg \
     g++ \
-&& apt-get clean \
-&& rm -rf /var/lib/apt/lists/* \
-&& mkdir -p /usr/share/espeak-ng-data \
-&& ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* \
+ && mkdir -p /usr/share/espeak-ng-data \
+ && ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/
 
+# --------------------------------------------------------------------------------
 # Install UV using the installer script
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
-    mv /root/.local/bin/uv /usr/local/bin/ && \
-    mv /root/.local/bin/uvx /usr/local/bin/
+# --------------------------------------------------------------------------------
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh \
+ && mv /root/.local/bin/uv /usr/local/bin/ \
+ && mv /root/.local/bin/uvx /usr/local/bin/
 
-# Create non-root user and set up directories and permissions
-RUN useradd -m -u 1000 appuser && \
-    mkdir -p /app/api/src/models/v1_0 && \
-    chown -R appuser:appuser /app
+# --------------------------------------------------------------------------------
+# Create non-root user and prepare directories (still root)
+# --------------------------------------------------------------------------------
+RUN useradd -m -u 1000 appuser \
+ && mkdir -p /app/api/src/models/v1_0
 
-USER appuser
 WORKDIR /app
 
-# Copy dependency files
-COPY --chown=appuser:appuser pyproject.toml ./pyproject.toml
+# --------------------------------------------------------------------------------
+# Copy dependency files and install Python dependencies as root
+# (This keeps layering efficient—no need to do chown here yet.)
+# --------------------------------------------------------------------------------
+COPY pyproject.toml pyproject.toml
 
-# Install dependencies
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv --python 3.10 && \
     uv sync --extra cpu
 
-# Copy project files including models
-COPY --chown=appuser:appuser api ./api
-COPY --chown=appuser:appuser web ./web
-COPY --chown=appuser:appuser docker/scripts/ ./
+# --------------------------------------------------------------------------------
+# Copy project files
+# --------------------------------------------------------------------------------
+COPY api ./api
+COPY web ./web
+COPY docker/scripts/ ./
 RUN chmod +x ./entrypoint.sh
 
+# --------------------------------------------------------------------------------
 # Set environment variables
+# --------------------------------------------------------------------------------
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
     PATH="/app/.venv/bin:$PATH" \
@@ -52,11 +62,24 @@ ENV PYTHONUNBUFFERED=1 \
     ESPEAK_DATA_PATH=/usr/share/espeak-ng-data
 
 ENV DOWNLOAD_MODEL=true
-# Download model if enabled
+
+# --------------------------------------------------------------------------------
+# (Optional) Download model if enabled
+# This still happens as root, so we can write to /app.
+# --------------------------------------------------------------------------------
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     python download_model.py --output api/src/models/v1_0; \
     fi
 
 ENV DEVICE="cpu"
-# Run FastAPI server through entrypoint.sh
+
+# --------------------------------------------------------------------------------
+# Change ownership of /app *once* and switch to non-root user
+# --------------------------------------------------------------------------------
+RUN chown -R appuser:appuser /app
+USER appuser
+
+# --------------------------------------------------------------------------------
+# Final command
+# --------------------------------------------------------------------------------
 CMD ["./entrypoint.sh"]
