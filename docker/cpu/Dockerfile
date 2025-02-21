@@ -41,6 +41,11 @@ RUN chmod +x ./entrypoint.sh
 # Now switch to non-root user
 USER appuser
 
+# Install dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv venv --python 3.10 && \
+    uv sync --extra cpu
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
