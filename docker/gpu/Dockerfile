@@ -50,7 +50,7 @@ ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
     ESPEAK_DATA_PATH=/usr/share/espeak-ng-data
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv --python 3.10 --path /app/.venv && \
+    uv venv --python 3.10 /app/.venv && \
     /app/.venv/bin/python -m ensurepip && \
     /app/.venv/bin/python -m pip install --upgrade pip wheel uv && \
     uv sync --extra gpu
