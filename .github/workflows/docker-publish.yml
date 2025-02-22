@@ -49,14 +49,21 @@ jobs:
         run: |
           echo "Listing current disk space"
           df -h
+          df -h /dev/root   
+          sudo du -sh /usr/local/lib/* /usr/local/share/* /opt/* 2>/dev/null | sort -hr | head -50
           echo "Cleaning up disk space..."
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/local/android-sdk
           sudo rm -rf /opt/ghc
           sudo rm -rf /opt/hostedtoolcache
+          sudo rm -rf /usr/local/share/boost
+          sudo rm -rf /usr/local/share/llvm
           docker system prune -af
+          docker builder prune -af || true  # If builder prune fails, don’t fail the job
           echo "Disk space after cleanup"
           df -h
+          sudo du -sh /usr/local/lib/* /usr/local/share/* /opt/* 2>/dev/null | sort -hr | head -50
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
