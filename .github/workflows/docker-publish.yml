@@ -59,11 +59,21 @@ jobs:
           sudo rm -rf /opt/hostedtoolcache
           sudo rm -rf /usr/local/share/boost
           sudo rm -rf /usr/local/share/llvm
+          sudo rm -rf /usr/local/share/powershell
+          sudo rm -rf /opt/az
+          sudo rm -rf /opt/microsoft
+          sudo rm -rf /usr/local/share/chromium
+          sudo rm -rf /usr/lib/jvm
+          sudo apt-get clean
+          sudo rm -rf /var/lib/apt/lists/*
+          
           docker system prune -af
           docker builder prune -af || true  # If builder prune fails, don’t fail the job
           echo "Disk space after cleanup"
           df -h
           sudo du -sh /usr/local/lib/* /usr/local/share/* /opt/* 2>/dev/null | sort -hr | head -50
+          sudo du -sh /usr/lib/* /var/* /home/* /snap/* 2>/dev/null | sort -hr | head -50
+
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
