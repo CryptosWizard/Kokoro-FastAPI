@@ -38,7 +38,7 @@ WORKDIR /app
 COPY pyproject.toml pyproject.toml
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv --python 3.10 && \
+    uv venv --python 3.10 --path /app/.venv && \
     /app/.venv/bin/python -m ensurepip && \
     /app/.venv/bin/python -m pip install --upgrade pip wheel uv && \
     uv sync --extra cpu
