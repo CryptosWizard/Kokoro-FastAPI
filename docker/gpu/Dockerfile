@@ -1,6 +1,9 @@
+# Use the CUDA runtime base image for GPU
 FROM --platform=$BUILDPLATFORM nvidia/cuda:12.8.0-cudnn-runtime-ubuntu24.04
+
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
+
 # --------------------------------------------------------------------------------
 # Install system-level dependencies
 # --------------------------------------------------------------------------------
@@ -23,7 +26,7 @@ RUN apt-get update && apt-get install -y \
 # --------------------------------------------------------------------------------
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh && \
     mv /root/.local/bin/uv /usr/local/bin/ && \
-    mv /root/.local/bin/uvx /usr/local/bin/ 
+    mv /root/.local/bin/uvx /usr/local/bin/
 
 # --------------------------------------------------------------------------------
 # Create non-root user and prepare directories (still root)
@@ -35,17 +38,19 @@ RUN useradd -m -u 1001 appuser && \
 WORKDIR /app
 
 # --------------------------------------------------------------------------------
-# Copy dependency files and install Python dependencies as root
-# (This keeps layering efficient—no need to do chown here yet.)
+# Copy dependency file
 # --------------------------------------------------------------------------------
 COPY pyproject.toml pyproject.toml
 
+# --------------------------------------------------------------------------------
+# Create the virtual environment in /app/.venv and install pip
+# --------------------------------------------------------------------------------
 ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
     ESPEAK_DATA_PATH=/usr/share/espeak-ng-data
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv --python 3.10 && \
+    uv venv --python 3.10 --path /app/.venv && \
     /app/.venv/bin/python -m ensurepip && \
     /app/.venv/bin/python -m pip install --upgrade pip wheel uv && \
     uv sync --extra gpu
@@ -65,22 +70,19 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app:/app/api \
     PATH="/app/.venv/bin:$PATH" \
     UV_LINK_MODE=copy \
-    USE_GPU=true 
-
-ENV DOWNLOAD_MODEL=true
+    USE_GPU=true \
+    DOWNLOAD_MODEL=true \
+    DEVICE="gpu"
 
 # --------------------------------------------------------------------------------
-# (Optional) Download model if enabled
-# This still happens as root, so we can write to /app.
+# (Optional) Download model if enabled (still as root)
 # --------------------------------------------------------------------------------
 RUN if [ "$DOWNLOAD_MODEL" = "true" ]; then \
     python download_model.py --output api/src/models/v1_0; \
     fi
 
-ENV DEVICE="gpu"
-
 # --------------------------------------------------------------------------------
-# Change ownership of /app *once* and switch to non-root user
+# Change ownership of /app once and switch to non-root user
 # --------------------------------------------------------------------------------
 RUN chown -R appuser:appuser /app
 USER appuser
